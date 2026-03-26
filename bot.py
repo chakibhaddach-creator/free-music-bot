@@ -1,48 +1,60 @@
-
-         import os
-import requests
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+import os
+import yt_dlp
+from telegram import Update
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
 
 TOKEN = os.getenv("TOKEN")
 
-user_mode = {}
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("🎵 تحميل أغنية", callback_data="music")]
-    ]
-    await update.message.reply_text(
-        "🔥 FREE MUSIC BOT\nأرسل اسم الأغنية:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "music":
-        user_mode[query.from_user.id] = "music"
-        await query.message.reply_text("🎵 أرسل اسم الأغنية")
+    await update.message.reply_text("🎵 أرسل اسم الأغنية")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
+    query = update.message.text
 
     await update.message.reply_text("⏳ جاري البحث...")
 
     try:
-        # API مجاني لتحميل الصوت
-        url = f"https://api.vevioz.com/api/button/mp3/{text}"
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'quiet': True,
+            'noplaylist': True,
+            'geo_bypass': True,
+            'nocheckcertificate': True,
+        }
 
-        await update.message.reply_text(f"✅ اضغط هنا لتحميل:\n{url}")
+        # البحث فقط (بدون تحميل)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch1:{query}", download=False)
+            url = info['entries'][0]['url']
 
-    except:
-        await update.message.reply_text("❌ حدث خطأ")
+        await update.message.reply_text("⏳ جاري التحميل...")
+
+        # تحميل الصوت
+        ydl_opts_download = {
+            'format': 'bestaudio/best',
+            'outtmpl': 'song.%(ext)s',
+            'quiet': True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }]
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
+            ydl.download([url])
+
+        # إرسال الملف
+        await update.message.reply_audio(audio=open("song.mp3", 'rb'))
+
+        os.remove("song.mp3")
+
+    except Exception as e:
+        await update.message.reply_text("❌ حدث خطأ أثناء التحميل")
 
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(buttons))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
 app.run_polling()
