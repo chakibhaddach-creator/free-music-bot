@@ -48,6 +48,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'quiet': True,
             'noplaylist': True,
             'geo_bypass': True,
+            'nocheckcertificate': True,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+            },
             'postprocessors': [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': 'mp3',
