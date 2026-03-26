@@ -1,7 +1,7 @@
 import os
-import yt_dlp
+import requests
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
 TOKEN = os.getenv("TOKEN")
 
@@ -14,40 +14,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("⏳ جاري البحث...")
 
     try:
-        ydl_opts = {
-            'format': 'bestaudio/best',
-            'quiet': True,
-            'noplaylist': True,
-            'geo_bypass': True,
-            'nocheckcertificate': True,
-        }
+        # API احترافي (بحث + تحميل)
+        url = f"https://api.vreden.my.id/api/spotify-download?query={query}"
 
-        # البحث فقط (بدون تحميل)
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{query}", download=False)
-            url = info['entries'][0]['url']
+        res = requests.get(url).json()
 
-        await update.message.reply_text("⏳ جاري التحميل...")
+        if "result" not in res:
+            await update.message.reply_text("❌ لم يتم العثور على الأغنية")
+            return
 
-        # تحميل الصوت
-        ydl_opts_download = {
-            'format': 'bestaudio/best',
-            'outtmpl': 'song.%(ext)s',
-            'quiet': True,
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }]
-        }
+        download_url = res["result"]["download"]
+        title = res["result"]["title"]
 
-        with yt_dlp.YoutubeDL(ydl_opts_download) as ydl:
-            ydl.download([url])
+        await update.message.reply_text(f"🎧 جاري تحميل: {title}")
 
-        # إرسال الملف
-        await update.message.reply_audio(audio=open("song.mp3", 'rb'))
+        # تحميل الملف
+        audio = requests.get(download_url)
 
-        os.remove("song.mp3")
+        file_name = "song.mp3"
+        with open(file_name, "wb") as f:
+            f.write(audio.content)
+
+        # إرسال داخل Telegram
+        await update.message.reply_audio(
+            audio=open(file_name, "rb"),
+            title=title
+        )
+
+        os.remove(file_name)
 
     except Exception as e:
         await update.message.reply_text("❌ حدث خطأ أثناء التحميل")
