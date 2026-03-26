@@ -58,26 +58,3 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'preferredquality': '192',
             }] if mode == "music" else []
         }
-
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"ytsearch1:{text}", download=True)
-            file_name = ydl.prepare_filename(info['entries'][0])
-
-        if mode == "music":
-            file_name = file_name.replace(".webm", ".mp3").replace(".m4a", ".mp3")
-            await update.message.reply_audio(audio=open(file_name, 'rb'))
-        else:
-            await update.message.reply_video(video=open(file_name, 'rb'))
-
-        os.remove(file_name)
-
-    except Exception as e:
-        await update.message.reply_text("❌ حدث خطأ أثناء التحميل")
-
-app = ApplicationBuilder().token(TOKEN).build()
-
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(buttons))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-app.run_polling()
