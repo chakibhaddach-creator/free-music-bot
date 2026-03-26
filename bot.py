@@ -1,8 +1,8 @@
-import os
+
+         import os
+import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
-import yt_dlp
-import os
 
 TOKEN = os.getenv("TOKEN")
 
@@ -10,11 +10,10 @@ user_mode = {}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
-        [InlineKeyboardButton("🎵 تحميل أغنية", callback_data="music")],
-        [InlineKeyboardButton("🎬 تحميل فيديو", callback_data="video")]
+        [InlineKeyboardButton("🎵 تحميل أغنية", callback_data="music")]
     ]
     await update.message.reply_text(
-        "🔥 FREE MUSIC BOT\nاختر ما تريد:",
+        "🔥 FREE MUSIC BOT\nأرسل اسم الأغنية:",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -26,35 +25,24 @@ async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_mode[query.from_user.id] = "music"
         await query.message.reply_text("🎵 أرسل اسم الأغنية")
 
-    elif query.data == "video":
-        user_mode[query.from_user.id] = "video"
-        await query.message.reply_text("🎬 أرسل اسم الفيديو")
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.message.from_user.id
     text = update.message.text
-    mode = user_mode.get(user_id)
 
-    if not mode:
-        await update.message.reply_text("اضغط /start أولاً")
-        return
-
-    await update.message.reply_text("⏳ جاري التحميل...")
+    await update.message.reply_text("⏳ جاري البحث...")
 
     try:
-        ydl_opts = {
-            'format': 'bestaudio/best' if mode == "music" else 'best',
-            'outtmpl': '%(title)s.%(ext)s',
-            'quiet': True,
-            'noplaylist': True,
-            'geo_bypass': True,
-            'nocheckcertificate': True,
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-            },
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'mp3',
-                'preferredquality': '192',
-            }] if mode == "music" else []
-        }
+        # API مجاني لتحميل الصوت
+        url = f"https://api.vevioz.com/api/button/mp3/{text}"
+
+        await update.message.reply_text(f"✅ اضغط هنا لتحميل:\n{url}")
+
+    except:
+        await update.message.reply_text("❌ حدث خطأ")
+
+app = ApplicationBuilder().token(TOKEN).build()
+
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CallbackQueryHandler(buttons))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+app.run_polling()
